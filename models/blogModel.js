@@ -34,10 +34,7 @@ var blogSchema = new mongoose.Schema({
         type: mongoose.Schema.Types.ObjectId,
         ref: "User"
     }],
-    image: {
-        type: String,
-        default: "https://thumbs.dreamstime.com/b/blog-information-website-concept-workplace-background-text-view-above-127465079.jpg"
-    },
+    image: [],
     author: {
         type: String,
         default: "Admin"
