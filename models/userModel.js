@@ -1,6 +1,6 @@
 const mongoose = require("mongoose");
 const bcrypt = require("bcrypt");
-const crypto = require('crypto');
+const crypto = require("crypto");
 var { nanoid } = require("nanoid");
 
 var userSchema = new mongoose.Schema(
@@ -35,12 +35,10 @@ var userSchema = new mongoose.Schema(
       type: Array,
       default: [],
     },
-    address: [
-      {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: "Address",
-      },
-    ],
+    address: {
+      type: String,
+    },
+
     wishlist: [
       {
         type: mongoose.Schema.Types.ObjectId,
@@ -49,20 +47,20 @@ var userSchema = new mongoose.Schema(
     ],
     isBlocked: {
       type: Boolean,
-      default: false
+      default: false,
     },
     refreshToken: {
-      type: String
+      type: String,
     },
     passwordChangedAt: Date,
     passwordResetToken: String,
-    passwordResetExpires: Date
+    passwordResetExpires: Date,
   },
   { timestamps: true }
 );
 
 userSchema.pre("save", async function (next) {
-  if(!this.isModified('password')) {
+  if (!this.isModified("password")) {
     next();
   }
   const salt = await bcrypt.genSaltSync(10);
@@ -73,11 +71,14 @@ userSchema.methods.isPasswordMatched = async function (enteredPassword) {
   return await bcrypt.compare(enteredPassword, this.password);
 };
 
-userSchema.methods.createPasswordResetToken = async function() {
+userSchema.methods.createPasswordResetToken = async function () {
   const resetToken = nanoid(64);
-  this.passwordResetToken = crypto.createHash('sha256').update(resetToken).digest('hex')
-  this.passwordResetExpires = Date.now()+30*60*1000; // 10 minutes
-  return resetToken
-}
+  this.passwordResetToken = crypto
+    .createHash("sha256")
+    .update(resetToken)
+    .digest("hex");
+  this.passwordResetExpires = Date.now() + 30 * 60 * 1000; // 10 minutes
+  return resetToken;
+};
 
 module.exports = mongoose.model("User", userSchema);

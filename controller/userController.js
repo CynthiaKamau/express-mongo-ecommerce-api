@@ -5,7 +5,7 @@ const User = require("../models/userModel");
 const validateMongoDbId = require("../utils/validateMongodbId");
 const jwt = require("jsonwebtoken");
 const sendEmail = require("./emailController");
-const crypto = require("crypto")
+const crypto = require("crypto");
 // new user
 const createUser = expressAsyncHandler(async (req, res) => {
   const email = req.body.email;
@@ -21,6 +21,28 @@ const createUser = expressAsyncHandler(async (req, res) => {
   } else {
     // User already exists
     throw new Error("User already exists!");
+  }
+});
+
+// save address
+const updateUserAddres = expressAsyncHandler(async (req, res) => {
+  const { id } = req.user;
+  validateMongoDbId(id);
+  try {
+    const updatedUserAddr = await User.findByIdAndUpdate(
+      id,
+      {
+        address: req?.body?.address,
+      },
+      { new: true }
+    );
+
+    res.json({
+      msg: updatedUserAddr,
+      success: true,
+    });
+  } catch (error) {
+    throw new Error(error);
   }
 });
 
@@ -43,6 +65,33 @@ const loginUser = expressAsyncHandler(async (req, res) => {
     res.json({
       msg: findUser,
       token: generateToken(findUser?._id),
+      success: true,
+    });
+  } else {
+    throw new Error("Invalid Credentials");
+  }
+});
+
+// login admin
+const loginAdmin = expressAsyncHandler(async (req, res) => {
+  const { email, password } = req.body;
+  const findAdmin = await User.findOne({ email });
+  if (findAdmin.role !== "admin") throw new Error("Not Authorized");
+  if (findAdmin && (await findAdmin.isPasswordMatched(password))) {
+    const refreshToken = await generateRefreshToken(findAdmin?.id);
+    const updateUser = await User.findByIdAndUpdate(
+      findAdmin?.id,
+      { refreshToken: refreshToken },
+      { new: true }
+    );
+    res.cookie("refreshToken", refreshToken, {
+      httpOnly: true,
+      maxAge: 72 * 60 * 60 * 1000,
+    });
+    res.cookie();
+    res.json({
+      msg: findAdmin,
+      token: generateToken(findAdmin?._id),
       success: true,
     });
   } else {
@@ -227,50 +276,65 @@ const updatePassword = expressAsyncHandler(async (req, res) => {
 const forgotPasswordToken = expressAsyncHandler(async (req, res) => {
   const { email } = req.body;
   const user = await User.findOne({ email });
-  if(!user) throw new Error ('User not found with this email');
+  if (!user) throw new Error("User not found with this email");
   try {
     const token = await user.createPasswordResetToken();
     await user.save();
-    const resetURL = `Hi, Please follow this link to reset your password. This link is valid for 10 minutes from now <a href="http://localhost:5000/api/user/reset-password/${token}">Click here</a>`
+    const resetURL = `Hi, Please follow this link to reset your password. This link is valid for 10 minutes from now <a href="http://localhost:5000/api/user/reset-password/${token}">Click here</a>`;
     const data = {
       to: email,
       subject: "Forgot oPassword Link",
       htm: resetURL,
-      text: "Hey user"
-    }
-    sendEmail(data)
-    res.json(token)
+      text: "Hey user",
+    };
+    sendEmail(data);
+    res.json(token);
   } catch (error) {
-    throw new Error(error)
+    throw new Error(error);
   }
-})
+});
 
 //reset password
-const resetPassword = expressAsyncHandler(async(req, res) => {
+const resetPassword = expressAsyncHandler(async (req, res) => {
   const { password } = req.body;
-  const { token} = req.params;
-  const hashedToken = crypto.createHash('sha256').update(token).digest('hex');
+  const { token } = req.params;
+  const hashedToken = crypto.createHash("sha256").update(token).digest("hex");
   const user = await User.findOne({
     passwordResetToken: hashedToken,
-    passwordResetExpires: {$gt:Date.now()}
-  })
-  if(user){
+    passwordResetExpires: { $gt: Date.now() },
+  });
+  if (user) {
     user.password = password;
     user.passwordResetToken = undefined;
     user.passwordResetExpires = undefined;
     await user.save();
     res.json({
       msg: user,
-      success: true
-    })
+      success: true,
+    });
   } else {
-    throw new Error("Token expired, please try again later")
+    throw new Error("Token expired, please try again later");
   }
-})
+});
+
+//get users wishlist
+const getWishlist = expressAsyncHandler(async (req, res) => {
+  const { _id } = req.user;
+  try {
+    const findUser = await User.findById(_id).populate("wishlist");
+    res.json({
+      msg: findUser,
+      success: true,
+    });
+  } catch (error) {
+    throw new Error(error);
+  }
+});
 
 module.exports = {
   createUser,
   loginUser,
+  loginAdmin,
   getUser,
   getUsers,
   updateUser,
@@ -281,5 +345,7 @@ module.exports = {
   logoutUser,
   updatePassword,
   forgotPasswordToken,
-  resetPassword
+  resetPassword,
+  getWishlist,
+  updateUserAddres,
 };

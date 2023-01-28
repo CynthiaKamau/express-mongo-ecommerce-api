@@ -37,7 +37,6 @@ const getBlog = asyncHandler(async (req, res) => {
   const { id } = req.params;
   validateMongoDbId(id);
   try {
-    console.log("test", await Blog.findById(id).populate('likes'));
     const blog = await Blog.findById(id).populate('likes').populate("dislikes");
     await Blog.findByIdAndUpdate(
       id,
@@ -101,7 +100,7 @@ const likeBlog = asyncHandler(async (req, res) => {
   // find blog you want to like
   const blog = await Blog.findById(blogId);
   // check current user
-  const user_id = req.user?.user_id;
+  const user_id = req.user?._id;
   // find if user has liked the blog
   const isLiked = blog?.isLiked;
   // find if user disliked the blog
